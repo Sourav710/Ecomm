@@ -1,6 +1,6 @@
 const Users = require('../models/userModel');
-
-
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 
 
@@ -18,15 +18,31 @@ const userController = {
             await Users.findOne({ email }).then(user => {
                 if (user) return res.status(400).json({ msg: 'User already exists' });
 
+                // Hash password
+                const saltRounds = 10;
+                const salt = bcrypt.genSaltSync(saltRounds);
+                const hashedPassword = bcrypt.hashSync(password, salt);
+
+                // Create new user
+
                 const newUser = new Users({
                     name,
                     email,
-                    password
+                    password: hashedPassword
                 });
 
+                //create jwt to authenticate
+                const accessToken = Users.createAccessToken({ id: newUser._id });
+                const refreshToken = Users.createAccessToken({ id: newUser._id });
+
+                res.cookie('refreshToken', refreshToken,{
+                    httpOnly: true,
+                    path: '/users/refresh_token',
+                });
+                
                 // Save user
                 newUser.save().then(user => {
-                    res.status(201).json({ msg: 'User registered successfully', user });
+                    res.status(201).json({accessToken});
                 }).catch(err => {
                     res.status(500).json({ msg: 'Error saving user', error: err.message });
                 });
@@ -36,6 +52,32 @@ const userController = {
         } catch (err) {
             res.status(500).json({ msg: 'Server error', error: err.message });
         }
-    }
+    },
+
+    refreshToken: async (req, res) => {
+        try {
+          const refreshToken = req?.cookies?.refreshToken;
+          if (!refreshToken) return res.status(401).json({ msg: 'No refresh token provided' });
+      
+          // verify refreshToken and issue access token here...
+          // placeholder response while wiring:
+          return res.status(200).json({ msg: 'Refresh token received' });
+        } catch (err) {
+          console.error(err);
+          return res.status(500).json({ msg: 'Server error', error: err.message });
+        }
+      }
 }
+
+const createAccessToken = (payload) => {
+    return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' });
+};
+Users.createAccessToken = createAccessToken;
+
+const createRefreshToken = (payload) => {
+    return jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+};
+Users.createRefreshToken = createRefreshToken;
+
+
 module.exports = userController
