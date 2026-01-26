@@ -1,6 +1,7 @@
 const Users = require('../models/userModel');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { get } = require('mongoose');
 
 
 
@@ -33,7 +34,7 @@ const userController = {
 
                 //create jwt to authenticate
                 const accessToken = Users.createAccessToken({ id: newUser._id });
-                const refreshToken = Users.createAccessToken({ id: newUser._id });
+                const refreshToken = Users.createRefreshToken({ id: newUser._id });
 
                 res.cookie('refreshToken', refreshToken,{
                     httpOnly: true,
@@ -65,6 +66,60 @@ const userController = {
         } catch (err) {
           console.error(err);
           return res.status(500).json({ msg: 'Server error', error: err.message });
+        }
+      },
+      
+      login : async (req, res) => {
+        try{
+            const { email, password } = req.body;
+
+            const user = await Users.findOne({ email });
+
+            if (!user) {
+                return res.status(400).json({ msg: 'User does not exist' });
+            }
+            // Simple validation
+            if (!email || !password) {
+                return res.status(400).json({ msg: 'Please enter all fields' });
+            }
+            // Check for existing user
+
+            const isMatch = await bcrypt.compare(password, user.password);
+            if (!isMatch) {
+                return res.status(400).json({ msg: 'Invalid credentials' });
+            }
+
+            const accessToken = Users.createAccessToken({ id: user._id });
+            const refreshToken = Users.createRefreshToken({ id: user._id });
+
+            res.cookie('refreshToken', refreshToken,{
+
+                httpOnly: true,
+                path: '/users/refresh_token',
+            });
+            res.json({msg: 'logged in successfully', accessToken});
+            
+        }
+        catch(err){
+            res.status(500).json({ msg: 'Server error', error: err.message });
+        }
+      },
+      logout: async (req, res) => {
+        try {
+          res.clearCookie('refreshToken', { path: '/users/refresh_token' });
+          return res.status(200).json({ msg: 'Logged out successfully' });
+        } catch (err) {
+          return res.status(500).json({ msg: 'Server error', error: err.message });
+        }
+      },
+      getUserInfo: async (req, res) => {
+        try{
+            const user = await Users.findById(req.user.id).select('-password');
+            if(!user) return res.status(400).json({msg: 'User does not exist'});
+            res.json(user);
+        }
+        catch(err){
+            res.status(500).json({ msg: 'Server error', error: err.message });
         }
       }
 }
