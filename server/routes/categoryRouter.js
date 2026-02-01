@@ -1,4 +1,6 @@
 const Router = require('express').Router();
+const categoryRouter = require('../controllers/categoryctrl');
 
-
-router.post('category')
+Router.route('/category')
+.get(require('../controllers/categoryctrl').getCategories)
+.post(require('../controllers/categoryctrl').createCategory);

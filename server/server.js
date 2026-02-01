@@ -12,6 +12,18 @@ app.use(express.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 3000;
 // Trim whitespace from env value
+
+app.get('/', (req, res) => {
+  res.json({ msg: 'API is running' });
+});
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+
+app.use('/api', require('./routes/categoryRouter'));
+
+
 const URI = process.env.MONGODB_URL && process.env.MONGODB_URL.trim();
 
 const sanitizeMongoURI = (uri) => {
